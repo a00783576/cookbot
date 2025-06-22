@@ -41,8 +41,8 @@ APP_IMAGE="${ACR_NAME}.azurecr.io/${APP_NAME}:latest"
 
 # Tus claves de API (¡ASEGÚRATE DE QUE SEAN LAS REALES DE PROD O DE PRUEBA PARA PROD!)
 # ¡IMPORTANTE! REEMPLAZA "TU_CLAVE_DE_GEMINI_DE_PRODUCCION_REAL" con tu clave real.
-GEMINI_API_KEY_AZURE="${GEMINI_API_KEY}"
-OPENAI_API_KEY_AZURE="${OPENAI_API_KEY}" # Si la usas, reemplaza con tu clave real
+GEMINI_API_KEY_AZURE="${GEMINI_API_KEY_AZURE}"
+OPENAI_API_KEY_AZURE="${OPENAI_API_KEY_AZURE}" # Si la usas, reemplaza con tu clave real
 
 # ==============================================================================
 # PASO 1: CREAR EL GRUPO DE RECURSOS (si no existe)
