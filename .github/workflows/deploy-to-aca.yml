@@ -23,7 +23,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest # Ejecuta el trabajo en un runner de Ubuntu
-    environment: DEV # ¡¡¡NOMBRE DEL ENTORNO DE GITHUB AQUÍ!!!
+    environment: DEV # NOMBRE DEL ENTORNO DE GITHUB
 
     steps:
       - name: Checkout Repository # Paso 1: Obtener el código fuente de tu repositorio
@@ -38,8 +38,8 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
-          username: ${{ secrets.AZURE_CREDENTIALS.clientId }}
-          password: ${{ secrets.AZURE_CREDENTIALS.clientSecret }}
+          # Reemplazamos username/password con azureCredentials
+          azure-credentials: ${{ secrets.AZURE_CREDENTIALS }} # Usar las credenciales ya autenticadas
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
         run: |
