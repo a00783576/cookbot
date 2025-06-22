@@ -5,7 +5,7 @@ name: Deploy Cookbot to Azure Container Apps CI/CD
 on:
   push:
     branches:
-      - master # ¡CORRECCIÓN! Dispara el flujo cuando se haga un push a la rama 'master'
+      - master # Dispara el flujo cuando se haga un push a la rama 'master'
 
 env:
   # Variables de entorno para el flujo de trabajo
@@ -23,6 +23,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest # Ejecuta el trabajo en un runner de Ubuntu
+    environment: DEV # ¡¡¡NOMBRE DEL ENTORNO DE GITHUB AQUÍ!!!
 
     steps:
       - name: Checkout Repository # Paso 1: Obtener el código fuente de tu repositorio
