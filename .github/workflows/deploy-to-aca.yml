@@ -5,7 +5,7 @@ name: Deploy Cookbot to Azure Container Apps CI/CD
 on:
   push:
     branches:
-      - main # Dispara el flujo cuando se haga un push a la rama 'main'
+      - master # ¡CORRECCIÓN! Dispara el flujo cuando se haga un push a la rama 'master'
 
 env:
   # Variables de entorno para el flujo de trabajo
