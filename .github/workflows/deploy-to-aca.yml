@@ -38,8 +38,9 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
-          # Reemplazamos username/password con azureCredentials
-          azure-credentials: ${{ secrets.AZURE_CREDENTIALS }} # Usar las credenciales ya autenticadas
+          # Corrección: Pasamos explícitamente el clientId como username y clientSecret como password
+          username: ${{ secrets.AZURE_CREDENTIALS.clientId }}
+          password: ${{ secrets.AZURE_CREDENTIALS.clientSecret }}
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
         run: |
