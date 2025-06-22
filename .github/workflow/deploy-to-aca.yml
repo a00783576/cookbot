@@ -1,6 +1,6 @@
 # .github/workflows/deploy-to-aca.yml
 
-name: Deploy Cookbot to Azure Container Apps
+name: Deploy Cookbot to Azure Container Apps CI/CD
 
 on:
   push:
@@ -9,15 +9,16 @@ on:
 
 env:
   # Variables de entorno para el flujo de trabajo
-  # ¡PERSONALIZA ESTOS VALORES PARA QUE COINCIDAN CON TUS RECURSOS REALES EN AZURE!
-  AZURE_RESOURCE_GROUP: rg-cookbot-test            # Nombre de tu grupo de recursos en Azure
-  AZURE_LOCATION: eastus                           # Región donde está tu entorno ACA
-  AZURE_ACA_ENVIRONMENT: cookbot-test-local        # Nombre de tu entorno de Container Apps existente
-  AZURE_ACA_APP_NAME: cookbot-next-app             # Nombre de la Container App que se va a desplegar/actualizar
-  AZURE_ACR_NAME: cookbotacr # <-- ¡Tu nombre de ACR sin el random part! Por ejemplo: cookbotacr123abc
-  AZURE_PG_SERVER_HOST: cookbot-pg-server.postgres.database.azure.com # El FQDN de tu servidor PostgreSQL en Azure
-  AZURE_PG_DB_NAME: cookbot_prod_db               # El nombre de tu base de datos en Azure
-  AZURE_PG_ADMIN_USER: cookbotadmin               # El usuario admin de PostgreSQL en Azure
+  # Estos valores se obtendrán de las 'Environment variables' que configuraste
+  # en la interfaz de GitHub (Settings > Secrets and variables > Actions > Environment variables)
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_ACA_ENVIRONMENT: ${{ vars.AZURE_ACA_ENVIRONMENT }}
+  AZURE_ACA_APP_NAME: ${{ vars.AZURE_ACA_APP_NAME }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  AZURE_PG_SERVER_HOST: ${{ vars.AZURE_PG_SERVER_HOST }}
+  AZURE_PG_DB_NAME: ${{ vars.AZURE_PG_DB_NAME }}
+  AZURE_PG_ADMIN_USER: ${{ vars.AZURE_PG_ADMIN_USER }}
 
 jobs:
   build-and-deploy:
@@ -30,38 +31,48 @@ jobs:
       - name: Log in to Azure # Paso 2: Autenticarse en Azure usando el Service Principal
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }} # Usa el secreto de GitHub que creamos
-          enable-AzPSSession: true
+          creds: ${{ secrets.AZURE_CREDENTIALS }} # Usa el secreto de GitHub
 
       - name: Log in to Azure Container Registry (ACR) # Paso 3: Autenticarse en ACR
         uses: azure/docker-login@v1
         with:
-          login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io # El servidor de login de tu ACR
-          username: ${{ secrets.AZURE_CREDENTIALS.clientId }} # Se usa el clientId del Service Principal
-          password: ${{ secrets.AZURE_CREDENTIALS.clientSecret }} # Se usa el clientSecret del Service Principal
+          login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_CREDENTIALS.clientId }}
+          password: ${{ secrets.AZURE_CREDENTIALS.clientSecret }}
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
         run: |
-          # Construir la imagen de tu aplicación con un tag único (el SHA del commit)
           docker build . --file Dockerfile --tag ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
-
-          # Subir la imagen a ACR
           docker push ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
 
-      - name: Deploy to Azure Container Apps # Paso 5: Desplegar la nueva imagen en ACA
+      - name: Ensure Container App Environment exists # Paso 5: Asegurar que el entorno ACA existe
+        run: |
+          echo "Verificando/Creando el entorno de Azure Container Apps: ${{ env.AZURE_ACA_ENVIRONMENT }} en ${{ env.AZURE_RESOURCE_GROUP }}..."
+          az containerapp env show --name "${{ env.AZURE_ACA_ENVIRONMENT }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+              echo "El entorno '${{ env.AZURE_ACA_ENVIRONMENT }}' no existe. Creándolo..."
+              az containerapp env create \
+                  --name "${{ env.AZURE_ACA_ENVIRONMENT }}" \
+                  --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+                  --location "${{ env.AZURE_LOCATION }}" || { echo "Error al crear el entorno de Container Apps. Saliendo."; exit 1; }
+              echo "Entorno de Container Apps '${{ env.AZURE_ACA_ENVIRONMENT }}' creado."
+          else
+              echo "El entorno '${{ env.AZURE_ACA_ENVIRONMENT }}' ya existe. Continuando."
+          fi
+
+      - name: Deploy to Azure Container Apps # Paso 6: Desplegar la nueva imagen en ACA
         uses: azure/container-apps-deploy-action@v1
         with:
-          appSourcePath: . # Ruta a tu código fuente
-          image: ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }} # La imagen que acabamos de construir y subir
+          appSourcePath: .
+          image: ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           containerAppName: ${{ env.AZURE_ACA_APP_NAME }}
           environment: ${{ env.AZURE_ACA_ENVIRONMENT }}
-          targetPort: 8080 # El puerto que tu aplicación Next.js escucha internamente
-          ingress: external # Acceso externo
-          minReplicas: 1 # Opcional: mantener al menos 1 réplica activa
-          maxReplicas: 1 # Opcional: para pruebas, 1 es suficiente. Escalar más en producción
-          # Pasar variables de entorno para la aplicación en ACA
-          # Nota: Aquí se usa envVars como una cadena multilinea, cada línea es KEY=VALUE
+          targetPort: 8080
+          ingress: external
+          minReplicas: 1
+          maxReplicas: 1
+          registry-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
           envVars: |
             DATABASE_URL=postgresql://${{ env.AZURE_PG_ADMIN_USER }}:${{ secrets.AZURE_PG_ADMIN_PASSWORD }}@${{ env.AZURE_PG_SERVER_HOST }}:5432/${{ env.AZURE_PG_DB_NAME }}?sslmode=require&schema=public
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY_AZURE }}
@@ -69,26 +80,24 @@ jobs:
             NODE_ENV=production
             PORT=8080
 
-      - name: Run Prisma Migrations on Container App # Paso 6 (Opcional): Ejecutar migraciones
-        # Solo se ejecuta si el despliegue anterior fue exitoso
+      - name: Run Prisma Migrations and Seed on Container App # Paso 7: Ejecutar migraciones y seeding
         if: success()
         run: |
-          echo "Ejecutando migraciones de Prisma..."
-          # Obtener la última revisión de la Container App para ejecutar el comando
-          REVISION_NAME=$(az containerapp revision list \
-            --name ${{ env.AZURE_ACA_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --environment ${{ env.AZURE_ACA_ENVIRONMENT }} \
-            --query "[?properties.active == true].name | [0]" -o tsv)
+          echo "Aplicando migraciones de Prisma y ejecutando el script de seeding en la Container App..."
+          echo "Esperando 60 segundos para que la revisión de la Container App se propague..."
+          sleep 60
+
+          REVISION_NAME=$(az containerapp show --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --query "properties.latestReadyRevisionName" -o tsv)
 
           if [ -z "$REVISION_NAME" ]; then
-              echo "No se pudo obtener la revisión activa de la Container App. Saltando migraciones."
-              exit 0 # Salir sin error si no se encuentra la revisión
+              echo "Error: No se pudo obtener el nombre de la revisión activa. Las migraciones y el seeding no se aplicarán."
+              exit 1
           else
               echo "Ejecutando npx prisma migrate deploy en la revisión: $REVISION_NAME"
-              az containerapp exec \
-                --name ${{ env.AZURE_ACA_APP_NAME }} \
-                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-                --command "npx prisma migrate deploy" \
-                --revision "$REVISION_NAME"
+              az containerapp exec --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --command "npx prisma migrate deploy" --revision "$REVISION_NAME" || { echo "Error al aplicar migraciones. Saliendo."; exit 1; }
+              echo "Migraciones de Prisma aplicadas."
+
+              echo "Ejecutando npx prisma db seed en la revisión: $REVISION_NAME"
+              az containerapp exec --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --command "npx prisma db seed" --revision "$REVISION_NAME" || { echo "Error al ejecutar el script de seeding. Saliendo."; exit 1; }
+              echo "Script de seeding de Prisma ejecutado."
           fi
