@@ -117,9 +117,9 @@ jobs:
           acrPassword: ${{ secrets.ACR_PASSWORD }} # Contraseña del ACR
           # CAMBIO: Usar environmentVariables en lugar de envVars
           environmentVariables: |
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY_AZURE }}
-            DATABASE_URL=postgresql://${{ env.AZURE_PG_ADMIN_USER }}:${{ secrets.AZURE_PG_ADMIN_PASSWORD }}@${{ env.AZURE_PG_SERVER_HOST }}:5432/${{ env.AZURE_PG_DB_NAME }}?sslmode=require&schema=public            
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_AZURE }}
+            DATABASE_URL=postgresql://${{ env.AZURE_PG_ADMIN_USER }}:${{ secrets.AZURE_PG_ADMIN_PASSWORD }}@${{ env.AZURE_PG_SERVER_HOST }}:5432/${{ env.AZURE_PG_DB_NAME }}?sslmode=require&schema=public
+            GEMINI_API_KEY=secretref:${{ secrets.GEMINI_API_KEY }}
+            OPENAI_API_KEY=secretref:${{ secrets.OPENAI_API_KEY }}
             NODE_ENV=production
             PORT=8080
-            TEST=TEST:${{ secrets.TEST }}
+            TEST=TEST:${{ env.TEST }}
