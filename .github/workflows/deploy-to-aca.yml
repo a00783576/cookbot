@@ -16,10 +16,10 @@ env:
   AZURE_ACA_ENVIRONMENT: ${{ vars.AZURE_ACA_ENVIRONMENT }}
   AZURE_ACA_APP_NAME: ${{ vars.AZURE_ACA_APP_NAME }}
   AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
-  AZURE_ACR_PASSWORD: ${{ vars.AZURE_ACR_PASSWORD }}
   AZURE_PG_SERVER_HOST: ${{ vars.AZURE_PG_SERVER_HOST }}
   AZURE_PG_DB_NAME: ${{ vars.AZURE_PG_DB_NAME }}
   AZURE_PG_ADMIN_USER: ${{ vars.AZURE_PG_ADMIN_USER }}
+  AZURE_PG_ADMIN_PASSWORD_ENV: ${{ secrets.AZURE_PG_ADMIN_PASSWORD }} # Temporal para el runner
 
 jobs:
   build-and-deploy:
@@ -39,16 +39,53 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
-          # Corrección: Usamos los nuevos secretos ACR_USERNAME y ACR_PASSWORD
-          username: ${{ env.AZURE_ACR_NAME }}
-          password: ${{ secrets.AZURE_ACR_PASSWORD }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Debug ACR_NAME before build
+        run: |
+          echo "Valor de AZURE_ACR_NAME en este paso: '${{ env.AZURE_ACR_NAME }}'"
+          echo "Valor de AZURE_ACA_APP_NAME en este paso: '${{ env.AZURE_ACA_APP_NAME }}'"
+          echo "Valor de github.sha en este paso: '${{ github.sha }}'"
+          FULL_IMAGE_TAG="${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}"
+          echo "Etiqueta completa construida: '$FULL_IMAGE_TAG'"
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
         run: |
-          docker build . --file Dockerfile --tag ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
-          docker push ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
+          FULL_IMAGE_TAG="${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}"
+          echo "Ejecutando docker build con tag: $FULL_IMAGE_TAG"
+          docker build . --file Dockerfile --tag "$FULL_IMAGE_TAG"
+          docker push "$FULL_IMAGE_TAG"
 
-      - name: Ensure Container App Environment exists # Paso 5: Asegurar que el entorno ACA existe
+      - name: Ensure Azure Database for PostgreSQL - Flexible Server exists
+        run: |
+          echo "Verificando/Creando Azure Database for PostgreSQL - Flexible Server: ${{ env.AZURE_PG_SERVER_HOST }}..."
+          PG_SHORT_NAME=$(echo "${{ env.AZURE_PG_SERVER_HOST }}" | cut -d'.' -f1)
+
+          az postgres flexible-server show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "$PG_SHORT_NAME" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+              echo "PostgreSQL Server '$PG_SHORT_NAME' no existe. Creándolo..."
+              az postgres flexible-server create \
+                  --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+                  --name "$PG_SHORT_NAME" \
+                  --location "${{ env.AZURE_LOCATION }}" \
+                  --version 16 \
+                  --admin-user "${{ env.AZURE_PG_ADMIN_USER }}" \
+                  --admin-password "${{ env.AZURE_PG_ADMIN_PASSWORD_ENV }}" \
+                  --sku-name Standard_B1ms \
+                  --storage-size 32 \
+                  --tier Burstable \
+                  --public-access All || { echo "Error al crear PostgreSQL Server. Saliendo."; exit 1; }
+              echo "PostgreSQL Server '$PG_SHORT_NAME' creado."
+          else
+              echo "PostgreSQL Server '$PG_SHORT_NAME' ya existe. Continuando."
+          fi
+
+      - name: Configure PostgreSQL Firewall Rule # Opcional: configurar una regla de firewall genérica
+        run: |
+          echo "Reglas de firewall para PostgreSQL: configuradas manualmente o no necesarias si la app está en la misma VNet."
+
+      - name: Ensure Container App Environment exists
         run: |
           echo "Verificando/Creando el entorno de Azure Container Apps: ${{ env.AZURE_ACA_ENVIRONMENT }} en ${{ env.AZURE_RESOURCE_GROUP }}..."
           az containerapp env show --name "${{ env.AZURE_ACA_ENVIRONMENT }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" > /dev/null 2>&1
@@ -66,16 +103,16 @@ jobs:
       - name: Deploy to Azure Container Apps # Paso 6: Desplegar la nueva imagen en ACA
         uses: azure/container-apps-deploy-action@v1
         with:
-          appSourcePath: .
+          # ELIMINADO: appSourcePath: .  <-- Esto evita que la acción intente construir de nuevo.
           image: ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.AZURE_ACA_APP_NAME }}:${{ github.sha }}
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           containerAppName: ${{ env.AZURE_ACA_APP_NAME }}
           environment: ${{ env.AZURE_ACA_ENVIRONMENT }}
           targetPort: 8080
           ingress: external
-          minReplicas: 1
-          maxReplicas: 1
-          registry-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
+          acrName: ${{ env.AZURE_ACR_NAME }} # Nombre corto del ACR
+          acrUsername: ${{ secrets.ACR_USERNAME }} # Nombre de usuario del ACR
+          acrPassword: ${{ secrets.ACR_PASSWORD }} # Contraseña del ACR
           envVars: |
             DATABASE_URL=postgresql://${{ env.AZURE_PG_ADMIN_USER }}:${{ secrets.AZURE_PG_ADMIN_PASSWORD }}@${{ env.AZURE_PG_SERVER_HOST }}:5432/${{ env.AZURE_PG_DB_NAME }}?sslmode=require&schema=public
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY_AZURE }}
