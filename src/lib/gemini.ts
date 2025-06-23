@@ -5,12 +5,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
   console.log('#####################################################');
 
   // Accede a cada variable de entorno que quieres verificar
+  console.log('TEST:', process.env.TEST);
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'DEFINIDA (no se muestra el valor completo por seguridad)' : 'NO DEFINIDA');
   console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'DEFINIDA (no se muestra el valor completo por seguridad)' : 'NO DEFINIDA');
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('PORT:', process.env.PORT);
-  console.log('TEST:', process.env.TEST);
 
   console.log('#####################################################');
   console.log('### FIN DE VERIFICACIÓN DE VARIABLES DE ENTORNO ###');
