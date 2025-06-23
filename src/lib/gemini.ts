@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+console.log('###################################');
+console.log(process.env.TEST as string);
+console.log('###################################');
+
 const API_KEY = process.env.GEMINI_API_KEY as string;
 
 if(!API_KEY){
