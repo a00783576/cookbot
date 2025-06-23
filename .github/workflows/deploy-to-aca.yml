@@ -122,4 +122,4 @@ jobs:
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_AZURE }}
             NODE_ENV=production
             PORT=8080
-            TEST=MYTEST
+            TEST=${{secrets.TEST}}
