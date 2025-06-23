@@ -40,7 +40,7 @@ jobs:
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
           username: ${{ env.AZURE_ACR_NAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          password: ${{ secrets.AZURE_ACR_PASSWORD }}
 
       - name: Debug ACR_NAME before build
         run: |
