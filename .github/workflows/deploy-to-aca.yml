@@ -40,7 +40,7 @@ jobs:
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
           # Corrección: Usamos los nuevos secretos ACR_USERNAME y ACR_PASSWORD
-          username: ${{ secrets.AZURE_ACR_NAME }}
+          username: ${{ env.AZURE_ACR_NAME }}
           password: ${{ secrets.AZURE_ACR_PASSWORD }}
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
