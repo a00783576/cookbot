@@ -121,4 +121,5 @@ jobs:
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY_AZURE }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_AZURE }}
             NODE_ENV=production
-            PORT=8080      
+            PORT=8080
+            TEST=MYTEST
