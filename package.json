@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -p $PORT", 
+    "lint": "next lint",
+    "seed:build": "tsc prisma/seed.ts --outDir dist/seed", 
+    "seed:run": "node dist/seed/seed.js" 
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "yarn seed:run" 
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
