@@ -45,4 +45,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 8080
 
 # Comando para iniciar la aplicación Next.js en producción
-CMD ["yarn", "start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && yarn start"]

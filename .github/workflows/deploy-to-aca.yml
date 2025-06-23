@@ -121,26 +121,4 @@ jobs:
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY_AZURE }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_AZURE }}
             NODE_ENV=production
-            PORT=8080
-
-      - name: Run Prisma Migrations and Seed on Container App # Paso 7: Ejecutar migraciones y seeding
-        if: success()
-        run: |
-          echo "Aplicando migraciones de Prisma y ejecutando el script de seeding en la Container App..."
-          echo "Esperando 60 segundos para que la revisión de la Container App se propague..."
-          sleep 60
-
-          REVISION_NAME=$(az containerapp show --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --query "properties.latestReadyRevisionName" -o tsv)
-
-          if [ -z "$REVISION_NAME" ]; then
-              echo "Error: No se pudo obtener el nombre de la revisión activa. Las migraciones y el seeding no se aplicarán."
-              exit 1
-          else
-              echo "Ejecutando npx prisma migrate deploy en la revisión: $REVISION_NAME"
-              az containerapp exec --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --command "npx prisma migrate deploy" --revision "$REVISION_NAME" || { echo "Error al aplicar migraciones. Saliendo."; exit 1; }
-              echo "Migraciones de Prisma aplicadas."
-
-              echo "Ejecutando npx prisma db seed en la revisión: $REVISION_NAME"
-              az containerapp exec --name "${{ env.AZURE_ACA_APP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --command "npx prisma db seed" --revision "$REVISION_NAME" || { echo "Error al ejecutar el script de seeding. Saliendo."; exit 1; }
-              echo "Script de seeding de Prisma ejecutado."
-          fi
+            PORT=8080      
