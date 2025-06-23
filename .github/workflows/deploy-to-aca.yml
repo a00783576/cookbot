@@ -39,7 +39,7 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
-          username: ${{ secrets.ACR_USERNAME }}
+          username: ${{ env.AZURE_ACR_NAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Debug ACR_NAME before build
