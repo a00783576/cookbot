@@ -16,6 +16,7 @@ env:
   AZURE_ACA_ENVIRONMENT: ${{ vars.AZURE_ACA_ENVIRONMENT }}
   AZURE_ACA_APP_NAME: ${{ vars.AZURE_ACA_APP_NAME }}
   AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  AZURE_ACR_PASSWORD: ${{ vars.AZURE_ACR_PASSWORD }}
   AZURE_PG_SERVER_HOST: ${{ vars.AZURE_PG_SERVER_HOST }}
   AZURE_PG_DB_NAME: ${{ vars.AZURE_PG_DB_NAME }}
   AZURE_PG_ADMIN_USER: ${{ vars.AZURE_PG_ADMIN_USER }}
@@ -38,9 +39,9 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_ACR_NAME }}.azurecr.io
-          # Corrección: Pasamos explícitamente el clientId como username y clientSecret como password
-          username: ${{ secrets.AZURE_CREDENTIALS.clientId }}
-          password: ${{ secrets.AZURE_CREDENTIALS.clientSecret }}
+          # Corrección: Usamos los nuevos secretos ACR_USERNAME y ACR_PASSWORD
+          username: ${{ secrets.AZURE_ACR_NAME }}
+          password: ${{ secrets.AZURE_ACR_PASSWORD }}
 
       - name: Build and push Docker image # Paso 4: Construir y subir la imagen Docker
         run: |
